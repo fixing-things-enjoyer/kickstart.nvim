@@ -6,6 +6,9 @@ return {
     -- add any opts here
     -- for example
     provider = 'ollama',
+    behaviour = {
+      enable_cursor_planning_mode = true,
+    },
     ollama = {
       endpoint = 'http://192.168.1.99:20776',
       model = 'qwen2.5-coder:32b',
