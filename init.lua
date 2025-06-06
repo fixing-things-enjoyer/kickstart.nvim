@@ -203,6 +203,17 @@ vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper win
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
+-- Ensure JS/TS files always use 2 spaces for indentation and expand tabs
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = { 'javascript', 'typescript', 'javascriptreact', 'typescriptreact', 'json', 'jsonc' },
+  callback = function()
+    vim.opt_local.expandtab = true
+    vim.opt_local.shiftwidth = 2
+    vim.opt_local.tabstop = 2
+  end,
+  desc = 'Set tab/indent options for JS/TS/JSON files',
+})
+
 -- Highlight when yanking (copying) text
 --  Try it with `yap` in normal mode
 --  See `:help vim.highlight.on_yank()`
@@ -736,7 +747,7 @@ require('lazy').setup({
 
   { -- Autoformat
     'stevearc/conform.nvim',
-    event = { 'BufWritePre' },
+    event = { 'BufWritePre' }, -- This event triggers format-on-save
     cmd = { 'ConformInfo' },
     keys = {
       {
@@ -745,32 +756,50 @@ require('lazy').setup({
           require('conform').format { async = true, lsp_format = 'fallback' }
         end,
         mode = '',
-        desc = '[F]ormat buffer',
+        desc = '[F]ormat buffer', -- This keymap triggers manual formatting
       },
     },
     opts = {
       notify_on_error = false,
       format_on_save = function(bufnr)
-        -- Disable "format_on_save lsp_fallback" for languages that don't
-        -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
+        -- This function determines *if* format-on-save happens and what options to use.
+        -- It currently disables formatting for c and cpp filetypes.
+        -- For javascript and typescript (and others not in disable_filetypes),
+        -- it returns options that enable formatting with a timeout and LSP fallback.
         local disable_filetypes = { c = true, cpp = true }
         if disable_filetypes[vim.bo[bufnr].filetype] then
-          return nil
+          return nil -- Return nil means don't format on save for this filetype
         else
-          return {
+          return { -- Return the options to enable format on save
             timeout_ms = 500,
             lsp_format = 'fallback',
           }
         end
       end,
       formatters_by_ft = {
+        -- This maps filetypes to the list of formatters to attempt.
         lua = { 'stylua' },
-        -- Conform can also run multiple formatters sequentially
         python = { 'isort', 'black' },
-        --
-        -- You can use 'stop_after_first' to run the first available formatter from the list
         javascript = { 'prettierd', 'prettier', stop_after_first = true },
+        typescript = { 'prettierd', 'prettier', stop_after_first = true },
+        -- Recommended additions if you work with these:
+        javascriptreact = { 'prettierd', 'prettier', stop_after_first = true },
+        typescriptreact = { 'prettierd', 'prettier', stop_after_first = true },
+        json = { 'prettierd', 'prettier', stop_after_first = true },
+        jsonc = { 'prettierd', 'prettier', stop_after_first = true },
+      },
+      -- ADD THIS 'formatters' TABLE TO YOUR opts = { ... }
+      formatters = {
+        -- Override the default configuration for prettierd
+        prettierd = {
+          -- This tells conform to keep the original formatter definition (like finding node_modules/.bin/prettierd)
+          inherit = true,
+        },
+        -- Do the same for the fallback 'prettier' command in case prettierd isn't found
+        prettier = {
+          inherit = true,
+          prepend_args = { '--tab-width', '2', '--use-tabs', 'false' },
+        },
       },
     },
   },
